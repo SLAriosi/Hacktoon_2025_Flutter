@@ -1,36 +1,53 @@
 import 'package:flutter/material.dart';
-import '../widgets/student_card.dart';
 
-class SelectStudentScreen extends StatelessWidget {
-  SelectStudentScreen({super.key});
+class SelectStudentPage extends StatelessWidget {
+  const SelectStudentPage({Key? key}) : super(key: key);
 
-  final students = [
-    {'id': '1001', 'name': 'Ana Maria'},
-    {'id': '1002', 'name': 'Bruno Silva'},
-    {'id': '1003', 'name': 'Carlos Eduardo'},
+  final List<Map<String, String>> alunos = const [
+    {'nome': 'Ana Silva', 'matricula': '2021001'},
+    {'nome': 'Carlos Pereira', 'matricula': '2021002'},
+    {'nome': 'Mariana Souza', 'matricula': '2021003'},
+    {'nome': 'João Oliveira', 'matricula': '2021004'},
   ];
 
   @override
   Widget build(BuildContext context) {
+    final Color azul = Colors.blue[800]!;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Selecionar Aluno')),
-      body: ListView.builder(
-        padding: const EdgeInsets.only(top: 10),
-        itemCount: students.length,
-        itemBuilder: (context, i) {
-          final student = students[i];
-          return StudentCard(
-            name: student['name']!,
-            id: student['id']!,
-            onTap: () => Navigator.pushNamed(context, '/manual-answers', arguments: student),
-          );
-        },
+      appBar: AppBar(
+        backgroundColor: azul,
+        title: const Text('Selecionar Aluno'),
+        centerTitle: true,
+        elevation: 4,
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.pushNamed(context, '/camera');
-        },
-        child: const Icon(Icons.camera_alt),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: ListView.separated(
+          itemCount: alunos.length,
+          separatorBuilder: (_, __) => const Divider(),
+          itemBuilder: (context, index) {
+            final aluno = alunos[index];
+            return ListTile(
+              leading: CircleAvatar(
+                backgroundColor: azul,
+                child: Text(
+                  aluno['nome']![0],
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+              ),
+              title: Text(
+                aluno['nome']!,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text('Matrícula: ${aluno['matricula']}'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () {
+                // Implementar ação ao selecionar aluno
+              },
+            );
+          },
+        ),
       ),
     );
   }

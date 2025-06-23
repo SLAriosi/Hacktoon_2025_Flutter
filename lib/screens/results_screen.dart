@@ -1,77 +1,122 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
-class ResultScreen extends StatelessWidget {
-  const ResultScreen({super.key});
+class AlunoResultado {
+  final String nome;
+  final double nota;
+
+  AlunoResultado({required this.nome, required this.nota});
+
+  factory AlunoResultado.fromJson(Map<String, dynamic> json) {
+    return AlunoResultado(
+      nome: json['nome'],
+      nota: (json['nota'] as num).toDouble(),
+    );
+  }
+}
+
+class ResultScreen extends StatefulWidget {
+  const ResultScreen({Key? key}) : super(key: key);
+
+  @override
+  State<ResultScreen> createState() => _ResultScreenState();
+}
+
+class _ResultScreenState extends State<ResultScreen> {
+  List<AlunoResultado> resultados = [];
+  bool carregando = true;
+  String? erro;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchResultados();
+  }
+
+  Future<void> fetchResultados() async {
+    try {
+      final response = await http.get(Uri.parse('http://10.0.2.2:8080/api/alunos'));
+
+      if (response.statusCode == 200) {
+        final List data = json.decode(response.body);
+        setState(() {
+          resultados = data.map((e) => AlunoResultado.fromJson(e)).toList();
+          carregando = false;
+        });
+      } else {
+        setState(() {
+          erro = 'Erro ao carregar resultados: ${response.statusCode}';
+          carregando = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        erro = 'Erro ao carregar resultados: $e';
+        carregando = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final Map args = ModalRoute.of(context)?.settings.arguments as Map? ?? {};
-    final String? imagePath = args['imagePath'];
-    final Map<int, bool>? answers = args['answers'];
+    final Color azul = Colors.blue[800]!;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Resultados do Gabarito'),
-        backgroundColor: Colors.greenAccent.shade700,
+        title: const Text('Resultados dos Alunos'),
+        backgroundColor: azul,
         centerTitle: true,
       ),
-      backgroundColor: const Color(0xFF121212),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            if (imagePath != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.file(
-                  File(imagePath),
-                  height: 220,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
+        child: carregando
+            ? const Center(child: CircularProgressIndicator())
+            : erro != null
+            ? Center(
+          child: Text(
+            erro!,
+            style: const TextStyle(color: Colors.red),
+          ),
+        )
+            : resultados.isEmpty
+            ? const Center(child: Text('Nenhum resultado encontrado.'))
+            : ListView.separated(
+          itemCount: resultados.length,
+          separatorBuilder: (_, __) => const Divider(),
+          itemBuilder: (context, index) {
+            final resultado = resultados[index];
+            return ListTile(
+              leading: CircleAvatar(
+                backgroundColor: azul.withOpacity(0.2),
+                child: Text(
+                  resultado.nome[0],
+                  style: TextStyle(
+                    color: azul,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: answers == null
-                  ? const Center(
-                child: Text('Nenhuma resposta disponível',
-                    style: TextStyle(color: Colors.white70)),
-              )
-                  : ListView.builder(
-                itemCount: answers.length,
-                itemBuilder: (context, index) {
-                  final question = answers.keys.elementAt(index);
-                  final correct = answers[question]!;
-
-                  return Card(
-                    color: correct ? Colors.green.shade900 : Colors.red.shade900,
-                    margin: const EdgeInsets.symmetric(vertical: 6),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    child: ListTile(
-                      leading: Icon(
-                        correct ? Icons.check_circle : Icons.cancel,
-                        color: correct ? Colors.greenAccent : Colors.redAccent,
-                        size: 32,
-                      ),
-                      title: Text(
-                        'Questão $question',
-                        style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white),
-                      ),
-                      subtitle: Text(
-                        correct ? 'Resposta correta' : 'Resposta incorreta',
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-                    ),
-                  );
-                },
+              title: Text(
+                resultado.nome,
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
-            ),
-          ],
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: azul,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  resultado.nota.toStringAsFixed(1),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ),
     );

@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:hackathon/screens/home_page.dart';
 import 'package:hackathon/screens/listarTurmas.dart';
@@ -19,10 +18,12 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
 
   void _login() async {
-    if (!_formKey.currentState!.validate()) return;
+    // if (!_formKey.currentState!.validate()) return;
 
     setState(() => _loading = true);
 
+    // --- LOGIN COMENTADO ---
+    /*
     final url = Uri.parse('http://192.168.0.112:8080/api/login');
     final body = jsonEncode({
       'login': _userController.text,
@@ -45,7 +46,6 @@ class _LoginScreenState extends State<LoginScreen> {
         MaterialPageRoute(builder: (context) => const HomeScreen()),
       );
     } else {
-      // Erro no login
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -60,6 +60,13 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     }
+    */
+    await Future.delayed(const Duration(milliseconds: 500));
+    setState(() => _loading = false);
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const HomeScreen(cameras: [],)),
+    );
   }
 
   @override
@@ -77,7 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Image.asset(
-                      '../assets/images/logo_unialfa.png',
+                      'assets/images/logo_unialfa.png',
                       height: 120,
                     ),
                     const SizedBox(height: 20),
@@ -97,8 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         labelText: 'Usuário',
                         prefixIcon: Icon(Icons.person, color: Colors.lightBlueAccent),
                       ),
-                      validator: (v) =>
-                      (v == null || v.isEmpty) ? 'Informe o usuário' : null,
+                      // validator: (v) => (v == null || v.isEmpty) ? 'Informe o usuário' : null,
                     ),
                     const SizedBox(height: 24),
                     TextFormField(
@@ -108,8 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         labelText: 'Senha',
                         prefixIcon: Icon(Icons.lock, color: Colors.lightBlueAccent),
                       ),
-                      validator: (v) =>
-                      (v == null || v.isEmpty) ? 'Informe a senha' : null,
+                      // validator: (v) => (v == null || v.isEmpty) ? 'Informe a senha' : null,
                     ),
                     const SizedBox(height: 48),
                     SizedBox(
