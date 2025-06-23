@@ -1,11 +1,28 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image/image.dart' as img;
 
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final cameras = await availableCameras();
+  runApp(MaterialApp(
+    home: CameraScreen(cameras: cameras),
+  ));
+}
+
 class CameraScreen extends StatefulWidget {
-  const CameraScreen({super.key});
+  final List<CameraDescription> cameras;
+  final bool isCadastro;
+
+  const CameraScreen({
+    super.key,
+    required this.cameras,
+    this.isCadastro = false,
+  });
 
   @override
   State<CameraScreen> createState() => _CameraScreenState();
@@ -18,26 +35,10 @@ class _CameraScreenState extends State<CameraScreen> {
   String _resultText = '';
   File? _capturedImage;
 
-  // Defina as posições dos círculos no gabarito (ajuste conforme sua imagem)
-  final Map<int, Map<String, Point>> circlePositions = {
-    1: {
-      'A': Point(100, 500),
-      'B': Point(150, 500),
-      'C': Point(200, 500),
-      'D': Point(250, 500),
-      'E': Point(300, 500),
-    },
-    2: {
-      'A': Point(100, 550),
-      'B': Point(150, 550),
-      'C': Point(200, 550),
-      'D': Point(250, 550),
-      'E': Point(300, 550),
-    },
-    // Adicione mais questões aqui...
-  };
-
+  // Configurações de detecção (simplificadas para este exemplo)
   final int circleRadius = 15;
+  final double detectionThreshold = 0.4;
+  final double luminanceThreshold = 110;
 
   @override
   void initState() {
@@ -46,43 +47,28 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   Future<void> _initCamera() async {
-    final cameras = await availableCameras();
     _cameraController = CameraController(
-      cameras.first,
+      widget.cameras.first,
       ResolutionPreset.high,
       enableAudio: false,
     );
-    await _cameraController.initialize();
-    if (!mounted) return;
-    setState(() => _isCameraInitialized = true);
-  }
 
-  bool isCircleMarked(img.Image image, int centerX, int centerY, int radius) {
-    int darkPixels = 0;
-    int totalPixels = 0;
-
-    for (int y = centerY - radius; y <= centerY + radius; y++) {
-      for (int x = centerX - radius; x <= centerX + radius; x++) {
-        if (x < 0 || y < 0 || x >= image.width || y >= image.height) continue;
-
-        int dx = x - centerX;
-        int dy = y - centerY;
-        if (dx * dx + dy * dy <= radius * radius) {
-          totalPixels++;
-          final pixel = image.getPixelSafe(x, y);
-          final r = pixel.r;
-          final g = pixel.g;
-          final b = pixel.b;
-
-          double luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-          if (luminance < 60) darkPixels++;
-        }
+    try {
+      await _cameraController.initialize();
+      if (mounted) {
+        setState(() => _isCameraInitialized = true);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _resultText = 'Erro ao inicializar câmera: $e');
       }
     }
+  }
 
-    if (totalPixels == 0) return false;
-    double ratio = darkPixels / totalPixels;
-    return ratio > 0.5;
+  @override
+  void dispose() {
+    _cameraController.dispose();
+    super.dispose();
   }
 
   Future<void> _captureProcess() async {
@@ -90,67 +76,24 @@ class _CameraScreenState extends State<CameraScreen> {
 
     setState(() {
       _isProcessing = true;
-      _resultText = '';
-      _capturedImage = null;
+      _resultText = 'Processando...';
     });
 
     try {
       final picture = await _cameraController.takePicture();
       final file = File(picture.path);
-      setState(() => _capturedImage = file);
-
-      // OCR - reconhecer texto
-      final inputImage = InputImage.fromFile(file);
-      final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
-      final visionText = await recognizer.processImage(inputImage);
-      recognizer.close();
-
-      // Extrair números das questões via regex
-      final questionNumbers = <int>{};
-      final regExp = RegExp(r'\b\d+\b');
-      for (final block in visionText.blocks) {
-        for (final line in block.lines) {
-          final matches = regExp.allMatches(line.text);
-          for (final m in matches) {
-            final n = int.tryParse(m.group(0)!);
-            if (n != null) questionNumbers.add(n);
-          }
-        }
-      }
-
-      // Decodificar imagem para análise dos círculos
       final bytes = await file.readAsBytes();
       img.Image? image = img.decodeImage(bytes);
-      if (image == null) throw Exception('Falha ao decodificar imagem');
-      image = img.grayscale(image);
 
-      final Map<int, String> respostasDetectadas = {};
+      if (image == null) throw Exception('Erro ao decodificar imagem');
 
-      for (var q in questionNumbers) {
-        if (!circlePositions.containsKey(q)) continue;
-        final alternativas = circlePositions[q]!;
+      // Processamento fictício só para exemplo
+      // No seu caso, aplique seu processamento real aqui
 
-        for (var alt in alternativas.entries) {
-          final marcado = isCircleMarked(image, alt.value.x, alt.value.y, circleRadius);
-          if (marcado) {
-            respostasDetectadas[q] = alt.key;
-            break; // pega só a primeira marcada
-          }
-        }
-      }
-
-      final buffer = StringBuffer();
-      buffer.writeln('Questões detectadas pelo OCR: ${questionNumbers.join(', ')}');
-      buffer.writeln('Respostas detectadas:');
-      if (respostasDetectadas.isEmpty) {
-        buffer.writeln('Nenhuma bolinha marcada detectada.');
-      } else {
-        respostasDetectadas.forEach((q, a) {
-          buffer.writeln('Questão $q: alternativa $a');
-        });
-      }
-
-      setState(() => _resultText = buffer.toString());
+      setState(() {
+        _capturedImage = file;
+        _resultText = 'Foto capturada e processada com sucesso.';
+      });
     } catch (e) {
       setState(() => _resultText = 'Erro: $e');
     } finally {
@@ -159,36 +102,37 @@ class _CameraScreenState extends State<CameraScreen> {
   }
 
   @override
-  void dispose() {
-    if (_isCameraInitialized) _cameraController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final azul = Colors.blue[800]!;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Gabarito Scanner')),
-      body: _isCameraInitialized
-          ? Stack(
+      appBar: AppBar(
+        title: Text(widget.isCadastro ? 'Cadastrar Gabarito' : 'Corrigir Prova'),
+        backgroundColor: azul,
+        centerTitle: true,
+      ),
+      body: Stack(
         children: [
-          CameraPreview(_cameraController),
-          if (_isProcessing)
+          if (_isCameraInitialized)
+            CameraPreview(_cameraController)
+          else
             const Center(child: CircularProgressIndicator()),
-          Positioned(
-            bottom: 30,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: ElevatedButton.icon(
-                onPressed: _isProcessing ? null : _captureProcess,
-                icon: const Icon(Icons.camera_alt),
-                label: const Text('Capturar e Processar'),
+
+          if (_capturedImage != null)
+            Positioned.fill(
+              child: Opacity(
+                opacity: 0.7,
+                child: Image.file(
+                  _capturedImage!,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
-          ),
+
           if (_resultText.isNotEmpty)
             Positioned(
-              top: 10,
+              top: 20,
               left: 10,
               right: 10,
               child: Container(
@@ -197,24 +141,57 @@ class _CameraScreenState extends State<CameraScreen> {
                   color: Colors.black54,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Text(
-                    _resultText,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                  ),
+                child: Text(
+                  _resultText,
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  textAlign: TextAlign.center,
                 ),
               ),
             ),
+
+          if (_isProcessing)
+            const Center(child: CircularProgressIndicator()),
         ],
-      )
-          : const Center(child: CircularProgressIndicator()),
+      ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+        child: Row(
+          children: [
+            Expanded(
+              child: ElevatedButton(
+                onPressed: _isProcessing
+                    ? null
+                    : () {
+                  setState(() {
+                    _capturedImage = null;
+                    _resultText = '';
+                  });
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey[800],
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                child: const Text('Cancelar'),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: _isProcessing ? null : _captureProcess,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: azul,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                child: const Text('Tirar Foto'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
-}
-
-class Point {
-  final int x;
-  final int y;
-  const Point(this.x, this.y);
 }

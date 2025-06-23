@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:camera/camera.dart';
+import 'package:hackathon/screens/home_page.dart';
 import 'package:hackathon/screens/listarTurmas.dart';
 import 'package:hackathon/screens/login_page.dart';
 import 'package:hackathon/screens/results_screen.dart';
 import 'package:hackathon/screens/camera_screen.dart';
 import 'package:hackathon/core/theme/app_theme.dart';
 
-void main() {
-  runApp(const UniAlfaApp());
+late final List<CameraDescription> cameras;
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final cameras = await availableCameras();
+  runApp(MaterialApp(home: HomeScreen(cameras: cameras)));
 }
 
 class UniAlfaApp extends StatelessWidget {
@@ -21,11 +27,26 @@ class UniAlfaApp extends StatelessWidget {
       darkTheme: AppTheme.dark,
       themeMode: ThemeMode.system,
       initialRoute: '/',
-      routes: {
-        '/': (context) => const LoginScreen(),
-        '/camera': (context) => const CameraScreen(),
-        '/results': (context) => const ResultScreen(),
-        '/listarTurmas': (context) => const ListarTurmas(),
+      onGenerateRoute: (settings) {
+        switch (settings.name) {
+          case '/':
+            return MaterialPageRoute(builder: (_) => const LoginScreen());
+          case '/results':
+            return MaterialPageRoute(builder: (_) => const ResultScreen());
+          case '/listarTurmas':
+            return MaterialPageRoute(builder: (_) => const ListarTurmas());
+          case '/camera':
+            final bool isCadastro = settings.arguments as bool? ?? false;
+            return MaterialPageRoute(
+              builder: (_) => CameraScreen(cameras: cameras, isCadastro: isCadastro),
+            );
+          default:
+            return MaterialPageRoute(
+              builder: (_) => Scaffold(
+                body: Center(child: Text('Rota não encontrada: ${settings.name}')),
+              ),
+            );
+        }
       },
     );
   }
