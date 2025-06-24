@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:hackathon/screens/home_page.dart';
-import 'package:hackathon/screens/listarTurmas.dart';
+import 'package:hackathon/shared/services/api_service.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,32 +20,29 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
 
   void _login() async {
-    // if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() => _loading = true);
 
-    // --- LOGIN COMENTADO ---
-    /*
-    final url = Uri.parse('http://192.168.0.112:8080/api/login');
-    final body = jsonEncode({
-      'login': _userController.text,
-      'password': _passController.text,
-    });
-
-    final response = await http.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
+    final response = await ApiClient.post(
+      '/login',
+      body: {
+        'login': _userController.text,
+        'password': _passController.text,
       },
-      body: body,
     );
 
     setState(() => _loading = false);
 
     if (response.statusCode == 200) {
+      final cameras = await availableCameras();
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isLoggedIn', true);
+
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        MaterialPageRoute(builder: (context) => HomeScreen(cameras: cameras)),
       );
     } else {
       showDialog(
@@ -60,13 +59,6 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     }
-    */
-    await Future.delayed(const Duration(milliseconds: 500));
-    setState(() => _loading = false);
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const HomeScreen(cameras: [],)),
-    );
   }
 
   @override
